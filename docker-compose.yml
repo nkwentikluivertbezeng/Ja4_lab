@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  reverse-proxy:
+    image: traefik:v3.0
+    command:
+      - "--providers.docker=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--api.insecure=true"
+      - "--log.level=DEBUG"
+    ports:
+      - "443:443"
+      - "8080:8080"   # Traefik dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    depends_on:
+      - ja4-service
+      - decision-engine
+      - backend
+
+  ja4-service:
+    build: ./ja4-service
+    container_name: ja4-service
+    ports:
+      - "5001:5001"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  decision-engine:
+    build: ./decision-engine
+    container_name: decision-engine
+    ports:
+      - "5002:5002"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BLOCKLIST=t13i9012h2_8da3,t13i7712h2_abcd
+
+  backend:
+    build: ./backend
+    container_name: backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`localhost`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  test-client:
+    image: curlimages/curl:latest
+    container_name: test-client
+    entrypoint: ["/bin/sh", "-c", "sleep infinity"]
