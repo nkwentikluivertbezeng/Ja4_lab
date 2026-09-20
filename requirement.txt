@@ -1,2 +1,0 @@
-flask
-ja4-python   # or your internal JA4 library name

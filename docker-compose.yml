@@ -1,50 +1,71 @@
-version: "3.9"
-
 services:
   reverse-proxy:
-    image: traefik:v3.0
+    image: traefik:v3.1.5
+    container_name: traefik_proxy
+
     command:
-      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik"
+      - "--providers.file.watch=true"
       - "--api.insecure=true"
       - "--log.level=DEBUG"
+
     ports:
+      - "80:80"
       - "443:443"
-      - "8080:8080"   # Traefik dashboard
+      - "8080:8080"
+
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    depends_on:
-      - ja4-service
-      - decision-engine
-      - backend
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+
+    networks:
+      - traefik-net
+    restart: unless-stopped
+
+  backend:
+    image: nginx:latest
+    container_name: backend
+    networks:
+      - traefik-net
+    volumes:
+      - ./backend/html:/usr/share/nginx/html:ro
+    # optional: expose port for debugging
+    ports:
+      - "8000:80"
 
   ja4-service:
     build: ./ja4-service
     container_name: ja4-service
-    ports:
-      - "5001:5001"
     environment:
       - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ja4.rule=Host(`nkb.local`)"
+      - "traefik.http.routers.ja4.entrypoints=web"
+      - "traefik.http.services.ja4.loadbalancer.server.port=5001"
+    networks:
+      - traefik-net
 
   decision-engine:
     build: ./decision-engine
     container_name: decision-engine
-    ports:
-      - "5002:5002"
     environment:
       - PYTHONUNBUFFERED=1
       - BLOCKLIST=t13i9012h2_8da3,t13i7712h2_abcd
-
-  backend:
-    build: ./backend
-    container_name: backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`localhost`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    networks:
+      - traefik-net
 
   test-client:
-    image: curlimages/curl:latest
+    image: alpine:latest
     container_name: test-client
-    entrypoint: ["/bin/sh", "-c", "sleep infinity"]
+    command: ["sleep", "infinity"]
+    networks:
+      - traefik-net
+
+networks:
+  traefik-net:
+    driver: bridge

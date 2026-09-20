@@ -1,0 +1,28 @@
+# # ./traefik/dynamic.yml
+
+# http:
+#   routers:
+#     backend-router:
+#       rule: "Host(`backend.local`)"
+#       entryPoints:
+#         - websecure
+#       service: backend-service
+
+#   services:
+#     backend-service:
+#       loadBalancer:
+#         servers:
+#           - url: "http://backend:8000"
+http:
+  routers:
+    backend-router:
+      rule: "Host(`backend.local`)"
+      entryPoints:
+        - web
+      service: backend-service
+
+  services:
+    backend-service:
+      loadBalancer:
+        servers:
+          - url: "http://backend:80"
