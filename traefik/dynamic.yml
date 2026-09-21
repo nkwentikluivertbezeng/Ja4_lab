@@ -21,8 +21,26 @@ http:
         - web
       service: backend-service
 
+    ja4-firewall-router:
+      rule: "Host(`secure.local`)"
+      entryPoints:
+        - web
+      service: ja4-firewall-service
+
+    secure-router:
+      rule: "Host(`secure.local`)"
+      entryPoints:
+        - websecure
+      service: backend-service
+      tls: {}
+
   services:
     backend-service:
       loadBalancer:
         servers:
           - url: "http://backend:80"
+
+    ja4-firewall-service:
+      loadBalancer:
+        servers:
+          - url: "http://ja4-firewall:5001"

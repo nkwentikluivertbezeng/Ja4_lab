@@ -14,8 +14,6 @@ services:
       - "--log.level=DEBUG"
 
     ports:
-      - "80:80"
-      - "443:443"
       - "8080:8080"
 
     volumes:
@@ -37,16 +35,35 @@ services:
     ports:
       - "8000:80"
 
-  ja4-service:
-    build: ./ja4-service
-    container_name: ja4-service
+  # ja4-service:
+  #   build: ./ja4-service
+  #   container_name: ja4-service
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.ja4.rule=Host(`nkb.local`)"
+  #     - "traefik.http.routers.ja4.entrypoints=web"
+  #     - "traefik.http.services.ja4.loadbalancer.server.port=5001"
+  #   networks:
+  #     - traefik-net
+
+  ja4-firewall:
+    build: ./ja4-firewall
+    container_name: ja4-firewall
+    networks:
+      - traefik-net
+
     environment:
       - PYTHONUNBUFFERED=1
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ja4.rule=Host(`nkb.local`)"
-      - "traefik.http.routers.ja4.entrypoints=web"
-      - "traefik.http.services.ja4.loadbalancer.server.port=5001"
+      - BACKEND_URL=http://backend:80
+      - BLOCKLIST=t13i9012h2_8da3,t13i7712h2_abcd
+    ports:
+      - "80:80"
+  tls-sniffer:
+    build: ./tls-sniffer
+    ports:
+      - "443:443"
     networks:
       - traefik-net
 
@@ -62,7 +79,7 @@ services:
   test-client:
     image: alpine:latest
     container_name: test-client
-    command: ["sleep", "infinity"]
+    command: [ "sleep", "infinity" ]
     networks:
       - traefik-net
 
