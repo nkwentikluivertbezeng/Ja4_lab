@@ -16,6 +16,27 @@
 # app.run(host="0.0.0.0", port=5001)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import os
 import requests
 import socket
@@ -81,13 +102,18 @@ def tls_listener():
         print(f"[JA4] TLS connection from {addr}")
 
         clienthello_raw = conn.recv(4096, socket.MSG_PEEK)
-        print("[JA4] Raw ClientHello bytes:", clienthello_raw[:64])
 
         clienthello_hex = binascii.hexlify(clienthello_raw).decode("ascii")
-        print("[JA4] ClientHello HEX:", clienthello_hex[:128])
+        # Blocklist enforcement
+        fp_full = ja4_fingerprint(clienthello_hex)
+        ja4c = fp_full.split("_")[1]   # extract JA4C
+        print(f"[JA4] CLient Fingerprint: {fp_full}")
+        print("[JA4] JA4C:", ja4c)
 
-        fp = ja4_fingerprint(clienthello_hex)
-        print("[JA4] Browser Fingerprint:", fp)
+        if ja4c in BLOCKLIST:
+            print(f"[JA4] BLOCKED: {fp_full}")
+            conn.close()
+            continue
 
         forward_tls(conn)
 
@@ -112,7 +138,7 @@ def sniff_tls_clienthello():
 
         # Compute JA4 fingerprint
         fp = ja4_fingerprint(clienthello_hex)
-        print("[JA4] Browser Fingerprint:", fp)
+        print("[JA4] Client Fingerprint:", fp)
 
         # Forward raw TLS to Traefik
         forward_tls(conn)
@@ -173,3 +199,131 @@ def catch_all(path):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# import os
+# import socket
+# import threading
+# import binascii
+# from python.ja4 import ja4_fingerprint
+
+# # Environment
+# TRAEFIK_HOST = os.getenv("TRAEFIK_HOST", "reverse-proxy")
+# TRAEFIK_PORT = int(os.getenv("TRAEFIK_PORT", "443"))
+# BLOCKLIST = os.getenv("BLOCKLIST", "").split(",")
+# BLOCKLIST = [fp.strip() for fp in BLOCKLIST if fp.strip()]
+
+
+# def forward_tls(client_conn):
+#     """
+#     Full-duplex TCP tunnel:
+#     Browser <-> JA4-firewall <-> Traefik (TLS stays intact).
+#     """
+#     import selectors
+
+#     upstream = socket.create_connection((TRAEFIK_HOST, TRAEFIK_PORT))
+#     upstream.setblocking(False)
+#     client_conn.setblocking(False)
+
+#     sel = selectors.DefaultSelector()
+#     sel.register(client_conn, selectors.EVENT_READ, data=upstream)
+#     sel.register(upstream, selectors.EVENT_READ, data=client_conn)
+
+#     try:
+#         while True:
+#             events = sel.select(timeout=1)
+#             if not events:
+#                 continue
+
+#             for key, _ in events:
+#                 src = key.fileobj
+#                 dst = key.data
+
+#                 try:
+#                     data = src.recv(4096)
+#                     if not data:
+#                         sel.unregister(src)
+#                         sel.unregister(dst)
+#                         src.close()
+#                         dst.close()
+#                         return
+#                     dst.sendall(data)
+#                 except Exception:
+#                     sel.unregister(src)
+#                     sel.unregister(dst)
+#                     src.close()
+#                     dst.close()
+#                     return
+#     finally:
+#         try:
+#             client_conn.close()
+#         except Exception:
+#             pass
+#         try:
+#             upstream.close()
+#         except Exception:
+#             pass
+
+
+# def tls_listener():
+#     """
+#     Passive TLS JA4 firewall:
+#     - Accept TLS on 443
+#     - Peek ClientHello
+#     - Compute JA4 fingerprint
+#     - Enforce BLOCKLIST
+#     - Forward allowed TLS to Traefik
+#     """
+#     sock = socket.socket()
+#     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#     sock.bind(("0.0.0.0", 443))
+#     sock.listen(128)
+#     print("[JA4] TLS listener active on port 443")
+
+#     while True:
+#         conn, addr = sock.accept()
+#         print(f"[JA4] TLS connection from {addr}")
+
+#         # Peek ClientHello without consuming it
+#         clienthello_raw = conn.recv(4096, socket.MSG_PEEK)
+#         if not clienthello_raw:
+#             print("[JA4] Empty ClientHello, closing")
+#             conn.close()
+#             continue
+
+#         clienthello_hex = binascii.hexlify(clienthello_raw).decode("ascii")
+
+
+#         # Blocklist enforcement
+#         fp_full = ja4_fingerprint(clienthello_hex)
+#         ja4c = fp_full.split("_")[1]   # extract JA4C
+#         print(f"[JA4] Browser Fingerprint: {fp}")
+#         print("[JA4] JA4C:", ja4c)
+
+#         if ja4c in BLOCKLIST:
+#             print(f"[JA4] BLOCKED: {ja4c}")
+#             conn.close()
+#             continue
+
+
+#         # Forward raw TLS to Traefik
+#         print(f"[JA4] ALLOW, forwarding TLS to {TRAEFIK_HOST}:{TRAEFIK_PORT}")
+#         threading.Thread(target=forward_tls, args=(conn,), daemon=True).start()
+
+
+# if __name__ == "__main__":
+#     tls_listener()

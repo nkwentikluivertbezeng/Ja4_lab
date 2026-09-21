@@ -9,6 +9,7 @@ BLOCKLIST = os.getenv("BLOCKLIST", "").split(",")
 def check():
     ja4c = request.json.get("ja4c")
     if ja4c in BLOCKLIST:
+        print("this is the code which runs")
         return jsonify({"decision": "block"})
     return jsonify({"decision": "allow"})
 

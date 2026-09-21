@@ -58,6 +58,7 @@ services:
       - PYTHONUNBUFFERED=1
       - BACKEND_URL=http://backend:80
       - BLOCKLIST=t13i9012h2_8da3,t13i7712h2_abcd
+      #2b729b4bf6f3
     ports:
       - "80:80"
   tls-sniffer:
@@ -72,7 +73,7 @@ services:
     container_name: decision-engine
     environment:
       - PYTHONUNBUFFERED=1
-      - BLOCKLIST=t13i9012h2_8da3,t13i7712h2_abcd
+    #  - BLOCKLIST=t13i9012h2_8da3,2b729b4bf6f3,8daaf6152771
     networks:
       - traefik-net
 
