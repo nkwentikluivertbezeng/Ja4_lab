@@ -88,14 +88,7 @@ The firewall will immediately block all TLS connections from that TLS stack.
 ---
 
 ## **Trusted Certificates**
-To remove browser “Not Secure” warnings:
-
-1. Create a local Certificate Authority (CA).
-2. Install the CA certificate into **Windows Trusted Root**.
-3. Issue certificates for `secure.local` using your CA.
-4. Configure Traefik to use these certificates.
-
-This makes your internal HTTPS fully trusted while preserving JA4 fingerprinting.
+TODO!!!!
 
 ---
 
@@ -152,7 +145,7 @@ It is a realistic foundation for:
 ---
 
 ## **Notes**
-- JA4C is the correct fingerprint to block.  
+- JA4_B is the correct fingerprint to block.  
 - JA4 varies per connection and should not be used for blocking.  
 - TLS is never decrypted by the firewall; only Traefik terminates TLS.  
 - Multiple fingerprints per page load are normal.
