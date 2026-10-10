@@ -1,5 +1,5 @@
 
-# **JA4 Firewall Lab — README**
+# **JA4 Firewall Lab **
 
 ## **Overview**
 This project implements a full **JA4 TLS fingerprinting firewall** in front of a Traefik reverse‑proxy and a backend web service.  
