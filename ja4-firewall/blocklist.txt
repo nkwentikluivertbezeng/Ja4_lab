@@ -1,0 +1,4 @@
+# One JA4C hash (12 hex characters) or full JA4 fingerprint per line.
+# The first entry is a JA4C observed from the local curl TLS probe.
+#2b729b4bf6f3
+

@@ -43,13 +43,14 @@ import socket
 import threading
 import binascii
 from flask import Flask, request, Response
+from python.blocklist import is_blocked, load_blocklist
 from python.ja4 import ja4_fingerprint
 import socket
 import ssl
 app = Flask(__name__)
 
 TRAefik_URL = os.getenv("TRAEFIK_URL", "http://reverse-proxy:80")
-BLOCKLIST = os.getenv("BLOCKLIST", "").split(",")
+BLOCKLIST = load_blocklist(os.getenv("BLOCKLIST_FILE", "/app/blocklist.txt"))
 
 def forward_tls(client_conn):
     import socket
@@ -93,29 +94,47 @@ def forward_tls(client_conn):
 
 def tls_listener():
     sock = socket.socket()
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("0.0.0.0", 443))
     sock.listen(5)
     print("[JA4] TLS listener active on port 443")
 
     while True:
         conn, addr = sock.accept()
+        threading.Thread(
+            target=handle_tls_connection,
+            args=(conn, addr),
+            daemon=True,
+        ).start()
+
+
+def handle_tls_connection(conn, addr):
+    try:
         print(f"[JA4] TLS connection from {addr}")
+        conn.settimeout(10)
 
         clienthello_raw = conn.recv(4096, socket.MSG_PEEK)
+        if not clienthello_raw:
+            print(f"[JA4] Empty TLS ClientHello from {addr}")
+            return
 
         clienthello_hex = binascii.hexlify(clienthello_raw).decode("ascii")
-        # Blocklist enforcement
         fp_full = ja4_fingerprint(clienthello_hex)
-        ja4c = fp_full.split("_")[1]   # extract JA4C
+        ja4c = fp_full.split("_")[1]
         print(f"[JA4] CLient Fingerprint: {fp_full}")
         print("[JA4] JA4C:", ja4c)
 
-        if ja4c in BLOCKLIST:
+        if is_blocked(fp_full, BLOCKLIST):
             print(f"[JA4] BLOCKED: {fp_full}")
             conn.close()
-            continue
+            return
 
+        conn.settimeout(None)
         forward_tls(conn)
+    except (OSError, ValueError, IndexError) as exc:
+        print(f"[JA4] TLS connection from {addr} failed: {exc}")
+    finally:
+        conn.close()
 
 
 # Start TLS listener in background
@@ -187,7 +206,7 @@ def firewall():
     print("this is the fingerprint")
     print(f"[JA4] this is the Fingerprint: {fp}")
 
-    if fp in BLOCKLIST:
+    if is_blocked(fp, BLOCKLIST):
         print(f"[JA4] BLOCKED: {fp}")
         return Response("Blocked by JA4 firewall", status=403)
 

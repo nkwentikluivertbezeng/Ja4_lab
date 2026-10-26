@@ -5,9 +5,9 @@ services:
 
     command:
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
       - "--providers.file.directory=/etc/traefik"
       - "--providers.file.watch=true"
       - "--api.insecure=true"
@@ -17,7 +17,6 @@ services:
       - "8080:8080"
 
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
 
     networks:
@@ -31,9 +30,6 @@ services:
       - traefik-net
     volumes:
       - ./backend/html:/usr/share/nginx/html:ro
-    # optional: expose port for debugging
-    ports:
-      - "8000:80"
 
   # ja4-service:
   #   build: ./ja4-service
@@ -57,16 +53,19 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - BACKEND_URL=http://backend:80
-      - BLOCKLIST=t13i9012h2_8da3,t13i7712h2_abcd
-      #2b729b4bf6f3
+      - BLOCKLIST_FILE=/app/blocklist.txt
     ports:
       - "80:80"
+    volumes:
+      - ./ja4-firewall/blocklist.txt:/app/blocklist.txt:ro
   tls-sniffer:
     build: ./tls-sniffer
     ports:
       - "443:443"
     networks:
       - traefik-net
+    depends_on:
+      - ja4-firewall
 
   decision-engine:
     build: ./decision-engine

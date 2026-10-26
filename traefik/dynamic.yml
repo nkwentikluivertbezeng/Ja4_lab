@@ -15,20 +15,8 @@
 #           - url: "http://backend:8000"
 http:
   routers:
-    backend-router:
-      rule: "Host(`backend.local`)"
-      entryPoints:
-        - web
-      service: backend-service
-
-    ja4-firewall-router:
-      rule: "Host(`secure.local`)"
-      entryPoints:
-        - web
-      service: ja4-firewall-service
-
     secure-router:
-      rule: "Host(`secure.local`)"
+      rule: "Host(`localhost`) || Host(`secure.local`) || Host(`backend.local`)"
       entryPoints:
         - websecure
       service: backend-service
@@ -39,8 +27,3 @@ http:
       loadBalancer:
         servers:
           - url: "http://backend:80"
-
-    ja4-firewall-service:
-      loadBalancer:
-        servers:
-          - url: "http://ja4-firewall:5001"
